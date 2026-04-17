@@ -33,6 +33,8 @@ export default function ProfilePage() {
   const [logoFile, setLogoFile] = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
+  const [draggingCover, setDraggingCover] = useState(false)
+  const [draggingLogo, setDraggingLogo] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -43,19 +45,28 @@ export default function ProfilePage() {
   const displayLogo = logoPreview || business.logo_url
   const displayCover = coverPreview || business.cover_url
 
-  function handleLogoChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
+  function applyLogo(file) {
+    if (!file || !file.type.startsWith('image/')) return
     setLogoFile(file)
     setLogoPreview(URL.createObjectURL(file))
   }
 
-  function handleCoverChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
+  function applyCover(file) {
+    if (!file || !file.type.startsWith('image/')) return
     setCoverFile(file)
     setCoverPreview(URL.createObjectURL(file))
   }
+
+  function handleLogoChange(e) { applyLogo(e.target.files[0]) }
+  function handleCoverChange(e) { applyCover(e.target.files[0]) }
+
+  function onCoverDragOver(e) { e.preventDefault(); setDraggingCover(true) }
+  function onCoverDragLeave(e) { if (!e.currentTarget.contains(e.relatedTarget)) setDraggingCover(false) }
+  function onCoverDrop(e) { e.preventDefault(); setDraggingCover(false); applyCover(e.dataTransfer.files[0]) }
+
+  function onLogoDragOver(e) { e.preventDefault(); setDraggingLogo(true) }
+  function onLogoDragLeave(e) { if (!e.currentTarget.contains(e.relatedTarget)) setDraggingLogo(false) }
+  function onLogoDrop(e) { e.preventDefault(); setDraggingLogo(false); applyLogo(e.dataTransfer.files[0]) }
 
   async function handleSave() {
     if (!logoFile && !coverFile) return
@@ -108,17 +119,20 @@ export default function ProfilePage() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-5">
         {/* Cover */}
         <div
-          className="w-full h-36 relative cursor-pointer group"
+          className={`w-full h-36 relative cursor-pointer group transition-all ${draggingCover ? 'ring-4 ring-indigo-400 ring-inset' : ''}`}
           style={
             displayCover
               ? { backgroundImage: `url(${displayCover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
               : { background: `linear-gradient(135deg, ${g1}, ${g2})` }
           }
           onClick={() => coverInputRef.current.click()}
+          onDragOver={onCoverDragOver}
+          onDragLeave={onCoverDragLeave}
+          onDrop={onCoverDrop}
         >
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
-              📷 Change cover photo
+          <div className={`absolute inset-0 transition-colors flex items-center justify-center ${draggingCover ? 'bg-black/40' : 'bg-black/0 group-hover:bg-black/30'}`}>
+            <div className={`transition-opacity bg-black/50 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 ${draggingCover ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+              {draggingCover ? '⬇️ Drop to upload' : '📷 Change cover photo'}
             </div>
           </div>
           <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
@@ -128,8 +142,11 @@ export default function ProfilePage() {
         <div className="px-5 pb-5">
           <div className="flex items-end gap-4 -mt-10 mb-3">
             <div
-              className="w-20 h-20 rounded-full border-4 border-white shadow-md overflow-hidden cursor-pointer relative group shrink-0"
+              className={`w-20 h-20 rounded-full border-4 border-white shadow-md overflow-hidden cursor-pointer relative group shrink-0 transition-all ${draggingLogo ? 'ring-4 ring-indigo-400' : ''}`}
               onClick={() => logoInputRef.current.click()}
+              onDragOver={onLogoDragOver}
+              onDragLeave={onLogoDragLeave}
+              onDrop={onLogoDrop}
             >
               {displayLogo ? (
                 <img src={displayLogo} alt="" className="w-full h-full object-cover" />
@@ -141,8 +158,10 @@ export default function ProfilePage() {
                   {business.name.charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-full flex items-center justify-center">
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xl">📷</span>
+              <div className={`absolute inset-0 transition-colors rounded-full flex items-center justify-center ${draggingLogo ? 'bg-black/50' : 'bg-black/0 group-hover:bg-black/40'}`}>
+                <span className={`transition-opacity text-white text-xl ${draggingLogo ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  {draggingLogo ? '⬇️' : '📷'}
+                </span>
               </div>
             </div>
             <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
@@ -159,29 +178,39 @@ export default function ProfilePage() {
 
       {/* Upload instructions */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <button
-          type="button"
+        <div
           onClick={() => coverInputRef.current.click()}
-          className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-4 text-center transition-colors group"
+          onDragOver={onCoverDragOver}
+          onDragLeave={onCoverDragLeave}
+          onDrop={onCoverDrop}
+          className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors cursor-pointer group
+            ${draggingCover ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}
         >
           <div className="text-2xl mb-1">🖼️</div>
-          <p className="text-xs font-medium text-slate-700 group-hover:text-indigo-600">Cover photo</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {coverFile ? '✓ Ready to save' : business.cover_url ? 'Click to change' : 'Click to upload'}
+          <p className={`text-xs font-medium ${draggingCover ? 'text-indigo-600' : 'text-slate-700 group-hover:text-indigo-600'}`}>
+            Cover photo
           </p>
-        </button>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {draggingCover ? 'Drop to upload' : coverFile ? '✓ Ready to save' : 'Click or drag here'}
+          </p>
+        </div>
 
-        <button
-          type="button"
+        <div
           onClick={() => logoInputRef.current.click()}
-          className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-4 text-center transition-colors group"
+          onDragOver={onLogoDragOver}
+          onDragLeave={onLogoDragLeave}
+          onDrop={onLogoDrop}
+          className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors cursor-pointer group
+            ${draggingLogo ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}
         >
           <div className="text-2xl mb-1">👤</div>
-          <p className="text-xs font-medium text-slate-700 group-hover:text-indigo-600">Profile picture</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {logoFile ? '✓ Ready to save' : business.logo_url ? 'Click to change' : 'Click to upload'}
+          <p className={`text-xs font-medium ${draggingLogo ? 'text-indigo-600' : 'text-slate-700 group-hover:text-indigo-600'}`}>
+            Profile picture
           </p>
-        </button>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {draggingLogo ? 'Drop to upload' : logoFile ? '✓ Ready to save' : 'Click or drag here'}
+          </p>
+        </div>
       </div>
 
       {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
