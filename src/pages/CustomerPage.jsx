@@ -70,7 +70,7 @@ export default function CustomerPage() {
           <span className="font-bold text-slate-900 text-lg">BookIt</span>
           <div className="flex items-center gap-4">
             <Link to="/search" className="text-sm text-indigo-600 font-medium hover:text-indigo-700">
-              Find a business
+              Search
             </Link>
             <button onClick={handleSignOut} className="text-sm font-medium text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors">
               Sign out
