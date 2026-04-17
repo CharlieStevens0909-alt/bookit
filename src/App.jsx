@@ -7,7 +7,7 @@ import OnboardingPage from './pages/OnboardingPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardPage from './pages/DashboardPage'
 import ServicesPage from './pages/ServicesPage'
-import AvailabilityPage from './pages/AvailabilityPage'
+import HoursPage from './pages/AvailabilityPage'
 import BookingPage from './pages/BookingPage'
 
 function App() {
@@ -28,7 +28,7 @@ function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="services" element={<ServicesPage />} />
-          <Route path="availability" element={<AvailabilityPage />} />
+          <Route path="hours" element={<HoursPage />} />
         </Route>
         <Route path="/book/:slug" element={<BookingPage />} />
       </Routes>

@@ -78,7 +78,7 @@ export default function AvailabilityPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900">Availability</h1>
+        <h1 className="text-xl font-bold text-slate-900">Hours</h1>
         <p className="text-slate-500 text-sm mt-0.5">Set your working hours for each day</p>
       </div>
 

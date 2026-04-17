@@ -60,7 +60,7 @@ export default function DashboardLayout() {
               <nav className="hidden sm:flex items-center gap-1">
                 <NavLink to="/dashboard" end className={navClass}>Overview</NavLink>
                 <NavLink to="/dashboard/services" className={navClass}>Services</NavLink>
-                <NavLink to="/dashboard/availability" className={navClass}>Availability</NavLink>
+                <NavLink to="/dashboard/hours" className={navClass}>Hours</NavLink>
               </nav>
             </div>
             <div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ export default function DashboardLayout() {
           <nav className="sm:hidden flex items-center gap-1 px-4 pb-2">
             <NavLink to="/dashboard" end className={navClass}>Overview</NavLink>
             <NavLink to="/dashboard/services" className={navClass}>Services</NavLink>
-            <NavLink to="/dashboard/availability" className={navClass}>Availability</NavLink>
+            <NavLink to="/dashboard/hours" className={navClass}>Hours</NavLink>
           </nav>
         </header>
 

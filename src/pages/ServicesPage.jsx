@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useBusiness } from '../lib/BusinessContext'
 
-const emptyForm = { name: '', duration_minutes: '', price: '' }
+const emptyForm = { name: '', price: '', notes: '' }
 
 export default function ServicesPage() {
   const { business } = useBusiness()
@@ -39,8 +39,8 @@ export default function ServicesPage() {
       .insert({
         business_id: business.id,
         name: form.name,
-        duration_minutes: parseInt(form.duration_minutes),
         price: parseFloat(form.price),
+        notes: form.notes || null,
       })
       .select()
       .single()
@@ -62,8 +62,8 @@ export default function ServicesPage() {
       .from('services')
       .update({
         name: editForm.name,
-        duration_minutes: parseInt(editForm.duration_minutes),
         price: parseFloat(editForm.price),
+        notes: editForm.notes || null,
       })
       .eq('id', id)
       .select()
@@ -89,8 +89,8 @@ export default function ServicesPage() {
     setEditingId(service.id)
     setEditForm({
       name: service.name,
-      duration_minutes: service.duration_minutes.toString(),
       price: service.price.toString(),
+      notes: service.notes || '',
     })
   }
 
@@ -111,61 +111,55 @@ export default function ServicesPage() {
           {services.map(service => (
             <div key={service.id} className="p-4">
               {editingId === service.id ? (
-                <div className="flex flex-wrap gap-2 items-center">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input
+                      className={`${inputClass} flex-1 min-w-32`}
+                      value={editForm.name}
+                      onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                      placeholder="Service name"
+                    />
+                    <input
+                      className={`${inputClass} w-28`}
+                      type="number"
+                      step="0.01"
+                      value={editForm.price}
+                      onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
+                      placeholder="£ Price"
+                    />
+                  </div>
                   <input
-                    className={`${inputClass} flex-1 min-w-32`}
-                    value={editForm.name}
-                    onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                    placeholder="Service name"
+                    className={`${inputClass} w-full`}
+                    value={editForm.notes}
+                    onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Notes (optional)"
                   />
-                  <input
-                    className={`${inputClass} w-24`}
-                    type="number"
-                    value={editForm.duration_minutes}
-                    onChange={e => setEditForm(p => ({ ...p, duration_minutes: e.target.value }))}
-                    placeholder="Mins"
-                  />
-                  <input
-                    className={`${inputClass} w-24`}
-                    type="number"
-                    step="0.01"
-                    value={editForm.price}
-                    onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
-                    placeholder="£ Price"
-                  />
-                  <button
-                    onClick={() => handleSaveEdit(service.id)}
-                    disabled={saving}
-                    className="text-sm bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="text-sm text-slate-500 hover:text-slate-700 px-2"
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveEdit(service.id)}
+                      disabled={saving}
+                      className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="text-sm text-slate-500 hover:text-slate-700 px-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-medium text-slate-900 text-sm">{service.name}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{service.duration_minutes} min · £{Number(service.price).toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">£{Number(service.price).toFixed(2)}</p>
+                    {service.notes && <p className="text-xs text-slate-400 mt-0.5">{service.notes}</p>}
                   </div>
                   <div className="flex gap-3 shrink-0">
-                    <button
-                      onClick={() => startEdit(service)}
-                      className="text-xs text-slate-500 hover:text-slate-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(service.id)}
-                      className="text-xs text-red-500 hover:text-red-700"
-                    >
-                      Delete
-                    </button>
+                    <button onClick={() => startEdit(service)} className="text-xs text-slate-500 hover:text-slate-700">Edit</button>
+                    <button onClick={() => handleDelete(service.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
                   </div>
                 </div>
               )}
@@ -177,40 +171,39 @@ export default function ServicesPage() {
       {/* Add service form */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h2 className="text-sm font-semibold text-slate-900 mb-4">Add a service</h2>
-        <form onSubmit={handleAdd} className="flex flex-wrap gap-2 items-end">
-          <div className="flex-1 min-w-40">
-            <label className="block text-xs text-slate-500 mb-1">Name</label>
-            <input
-              className={`${inputClass} w-full`}
-              required
-              value={form.name}
-              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              placeholder="e.g. Haircut"
-            />
+        <form onSubmit={handleAdd} className="space-y-3">
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-40">
+              <label className="block text-xs text-slate-500 mb-1">Name</label>
+              <input
+                className={`${inputClass} w-full`}
+                required
+                value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Haircut"
+              />
+            </div>
+            <div className="w-28">
+              <label className="block text-xs text-slate-500 mb-1">Price (£)</label>
+              <input
+                className={`${inputClass} w-full`}
+                type="number"
+                required
+                min={0}
+                step="0.01"
+                value={form.price}
+                onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+                placeholder="15.00"
+              />
+            </div>
           </div>
-          <div className="w-28">
-            <label className="block text-xs text-slate-500 mb-1">Duration (mins)</label>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Notes <span className="text-slate-300">(optional)</span></label>
             <input
               className={`${inputClass} w-full`}
-              type="number"
-              required
-              min={5}
-              value={form.duration_minutes}
-              onChange={e => setForm(p => ({ ...p, duration_minutes: e.target.value }))}
-              placeholder="30"
-            />
-          </div>
-          <div className="w-28">
-            <label className="block text-xs text-slate-500 mb-1">Price (£)</label>
-            <input
-              className={`${inputClass} w-full`}
-              type="number"
-              required
-              min={0}
-              step="0.01"
-              value={form.price}
-              onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
-              placeholder="15.00"
+              value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="e.g. Includes wash and style"
             />
           </div>
           <button
@@ -218,7 +211,7 @@ export default function ServicesPage() {
             disabled={saving}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            Add
+            Add service
           </button>
         </form>
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}

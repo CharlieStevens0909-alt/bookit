@@ -222,7 +222,7 @@ export default function BookingPage() {
     const generated = generateSlots(
       dayAvail.start_time,
       dayAvail.end_time,
-      selectedService.duration_minutes,
+      30,
       existing || []
     )
 
@@ -356,7 +356,7 @@ export default function BookingPage() {
                       <span className="font-medium text-slate-900 text-sm group-hover:text-indigo-700">{service.name}</span>
                       <span className="font-semibold text-slate-900 text-sm">£{Number(service.price).toFixed(2)}</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">{service.duration_minutes} minutes</p>
+                    {service.notes && <p className="text-xs text-slate-400 mt-0.5">{service.notes}</p>}
                   </button>
                 ))}
               </div>
