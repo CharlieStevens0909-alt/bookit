@@ -415,20 +415,31 @@ export default function BookingPage() {
               <button onClick={() => setStep(1)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
               <h2 className="text-base font-semibold text-slate-900">Pick a date</h2>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <Calendar
-                selected={selectedDate}
-                openDays={openDays}
-                onSelect={(date) => {
-                  setSelectedDate(date)
-                  loadSlots(date)
-                  setStep(3)
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-400 mt-2 text-center">
-              Greyed-out dates are unavailable
-            </p>
+
+            {openDays.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                <p className="text-2xl mb-2">🗓️</p>
+                <p className="font-medium text-slate-700 text-sm">No availability set</p>
+                <p className="text-slate-400 text-xs mt-1">{business.name} hasn't set their hours yet. Check back soon.</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <Calendar
+                    selected={selectedDate}
+                    openDays={openDays}
+                    onSelect={(date) => {
+                      setSelectedDate(date)
+                      loadSlots(date)
+                      setStep(3)
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2 text-center">
+                  Greyed-out dates are unavailable
+                </p>
+              </>
+            )}
           </div>
         )}
 

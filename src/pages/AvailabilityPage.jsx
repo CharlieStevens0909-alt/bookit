@@ -39,6 +39,17 @@ export default function AvailabilityPage() {
           end_time: existing?.end_time?.slice(0, 5) ?? '17:00',
         }
       }))
+    } else {
+      // No hours saved yet — auto-save Mon–Fri 9–5 as sensible defaults
+      const toInsert = defaultSlots
+        .filter(s => s.enabled)
+        .map(s => ({
+          business_id: business.id,
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+        }))
+      await supabase.from('availability').insert(toInsert)
     }
 
     setLoading(false)
