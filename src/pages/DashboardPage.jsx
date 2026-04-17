@@ -12,6 +12,8 @@ function formatTime(t) {
   return `${hour % 12 || 12}:${m}${hour >= 12 ? 'pm' : 'am'}`
 }
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
 export default function DashboardPage() {
   const { business } = useBusiness()
   const [bookings, setBookings] = useState([])
@@ -20,8 +22,11 @@ export default function DashboardPage() {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState(toDateString(today))
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
 
   useEffect(() => {
     if (!business) return
@@ -56,77 +61,124 @@ export default function DashboardPage() {
     setBookings(prev => prev.filter(b => b.id !== id))
   }
 
-  // Build a set of dates that have bookings for dot indicators
   const bookedDates = new Set(bookings.map(b => b.date))
 
-  const year = viewDate.getFullYear()
-  const month = viewDate.getMonth()
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
   const startOffset = firstDay === 0 ? 6 : firstDay - 1
 
   const cells = []
   for (let i = 0; i < startOffset; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d))
-
-  const monthLabel = viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(viewYear, viewMonth, d))
 
   const selectedBookings = bookings.filter(b => b.date === selectedDate)
-
   const selectedDateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long'
   })
+
+  // Years to show in picker (3 years back, 2 forward)
+  const currentYear = today.getFullYear()
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i)
 
   if (loading) return <p className="text-slate-400">Loading...</p>
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">{business.name}</h1>
         <p className="text-slate-500 text-sm">{business.type} · {business.location}</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-sm text-slate-500">This week</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{stats.week}</p>
-          <p className="text-xs text-slate-400 mt-0.5">bookings</p>
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs text-slate-500">This week</p>
+          <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.week}</p>
+          <p className="text-xs text-slate-400">bookings</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-sm text-slate-500">This month</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{stats.month}</p>
-          <p className="text-xs text-slate-400 mt-0.5">bookings</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs text-slate-500">This month</p>
+          <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.month}</p>
+          <p className="text-xs text-slate-400">bookings</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Calendar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          {/* Header with month/year picker */}
+          <div className="flex items-center justify-between mb-3 relative">
             <button
-              onClick={() => setViewDate(new Date(year, month - 1, 1))}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              onClick={() => {
+                if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+                else setViewMonth(m => m - 1)
+              }}
+              className="p-1 rounded hover:bg-slate-100 text-slate-500 text-lg leading-none"
             >
               ‹
             </button>
-            <span className="text-sm font-semibold text-slate-900">{monthLabel}</span>
+
             <button
-              onClick={() => setViewDate(new Date(year, month + 1, 1))}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              onClick={() => setShowMonthPicker(v => !v)}
+              className="text-sm font-semibold text-slate-900 hover:text-indigo-600 transition-colors"
+            >
+              {MONTHS[viewMonth]} {viewYear} ▾
+            </button>
+
+            <button
+              onClick={() => {
+                if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+                else setViewMonth(m => m + 1)
+              }}
+              className="p-1 rounded hover:bg-slate-100 text-slate-500 text-lg leading-none"
             >
               ›
             </button>
+
+            {/* Dropdown picker */}
+            {showMonthPicker && (
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-xl shadow-lg z-10 p-3 w-56">
+                {/* Year selector */}
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={() => setViewYear(y => y - 1)}
+                    className="text-slate-400 hover:text-slate-700 px-2"
+                  >‹</button>
+                  <span className="text-sm font-semibold text-slate-900">{viewYear}</span>
+                  <button
+                    onClick={() => setViewYear(y => y + 1)}
+                    className="text-slate-400 hover:text-slate-700 px-2"
+                  >›</button>
+                </div>
+                {/* Month grid */}
+                <div className="grid grid-cols-3 gap-1">
+                  {MONTHS.map((m, i) => (
+                    <button
+                      key={m}
+                      onClick={() => { setViewMonth(i); setShowMonthPicker(false) }}
+                      className={`text-xs py-1.5 rounded-lg transition-colors ${
+                        i === viewMonth && viewYear === (showMonthPicker ? viewYear : today.getFullYear())
+                          ? 'bg-indigo-600 text-white'
+                          : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-7 mb-1">
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-              <div key={i} className="text-center text-xs text-slate-400 py-1">{d}</div>
+          {/* Day headers */}
+          <div className="grid grid-cols-7 mb-0.5">
+            {['M','T','W','T','F','S','S'].map((d, i) => (
+              <div key={i} className="text-center text-xs text-slate-300 py-0.5">{d}</div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5">
+          {/* Date cells */}
+          <div className="grid grid-cols-7 gap-px">
             {cells.map((date, i) => {
               if (!date) return <div key={i} />
               const dateStr = toDateString(date)
@@ -139,16 +191,16 @@ export default function DashboardPage() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => setSelectedDate(dateStr)}
+                  onClick={() => { setSelectedDate(dateStr); setShowMonthPicker(false) }}
                   className={`
-                    aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative
+                    aspect-square flex flex-col items-center justify-center rounded-md text-xs transition-colors relative
                     ${isSelected ? 'bg-indigo-600 text-white' : isPast ? 'text-slate-300' : 'text-slate-700 hover:bg-slate-100'}
                     ${isToday && !isSelected ? 'font-bold text-indigo-600' : ''}
                   `}
                 >
                   {date.getDate()}
                   {hasBookings && (
-                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500'}`} />
+                    <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400'}`} />
                   )}
                 </button>
               )
@@ -156,12 +208,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Bookings for selected date */}
+        {/* Bookings panel */}
         <div>
           <h2 className="text-sm font-semibold text-slate-900 mb-3">{selectedDateLabel}</h2>
 
           {selectedBookings.length === 0 ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
+            <div className="bg-white rounded-xl border border-slate-200 p-5 text-center">
               <p className="text-slate-400 text-sm">No bookings on this day</p>
               {toDateString(today) === selectedDate && (
                 <a
@@ -177,10 +229,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {selectedBookings.map(booking => (
-                <div
-                  key={booking.id}
-                  className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4"
-                >
+                <div key={booking.id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900 text-sm truncate">{booking.customer_name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -190,9 +239,7 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => {
-                      if (confirm(`Cancel booking for ${booking.customer_name}?`)) {
-                        cancelBooking(booking.id)
-                      }
+                      if (confirm(`Cancel booking for ${booking.customer_name}?`)) cancelBooking(booking.id)
                     }}
                     className="text-xs text-red-500 hover:text-red-700 shrink-0"
                   >

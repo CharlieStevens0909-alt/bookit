@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import ServicesPage from './pages/ServicesPage'
 import HoursPage from './pages/AvailabilityPage'
 import BookingPage from './pages/BookingPage'
+import CustomerPage from './pages/CustomerPage'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="services" element={<ServicesPage />} />
           <Route path="hours" element={<HoursPage />} />
         </Route>
+        <Route path="/my-bookings" element={<CustomerPage />} />
         <Route path="/book/:slug" element={<BookingPage />} />
       </Routes>
     </BrowserRouter>
