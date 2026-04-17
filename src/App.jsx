@@ -8,6 +8,7 @@ import DashboardLayout from './pages/DashboardLayout'
 import DashboardPage from './pages/DashboardPage'
 import ServicesPage from './pages/ServicesPage'
 import HoursPage from './pages/AvailabilityPage'
+import ProfilePage from './pages/ProfilePage'
 import BookingPage from './pages/BookingPage'
 import CustomerPage from './pages/CustomerPage'
 import LandingPage from './pages/LandingPage'
@@ -32,6 +33,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="hours" element={<HoursPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="/search" element={<SearchPage />} />
         <Route path="/my-bookings" element={<CustomerPage />} />
