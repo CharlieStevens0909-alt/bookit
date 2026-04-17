@@ -36,7 +36,7 @@ export default function OnboardingPage() {
   const logoInputRef = useRef()
   const coverInputRef = useRef()
 
-  const [form, setForm] = useState({ name: '', type: '', location: '', description: '' })
+  const [form, setForm] = useState({ name: '', type: '', location: '', description: '', phone: '' })
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
@@ -89,6 +89,7 @@ export default function OnboardingPage() {
         type: form.type,
         location: form.location,
         description: form.description,
+        phone: form.phone || null,
         slug,
         logo_url,
         cover_url,
@@ -201,6 +202,17 @@ export default function OnboardingPage() {
                 type="text" name="location" required value={form.location} onChange={handleChange}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="e.g. Greenock, Inverclyde"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Phone number <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="tel" name="phone" value={form.phone} onChange={handleChange}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="e.g. 01475 123456"
               />
             </div>
 

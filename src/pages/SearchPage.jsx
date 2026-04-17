@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import BrandLink from '../components/BrandLink'
 
 const gradients = [
   ['#6366f1','#8b5cf6'],
@@ -113,7 +114,8 @@ export default function SearchPage() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link to="/" className="font-bold text-slate-900 text-lg shrink-0">BookIt</Link>
+          <BrandLink className="font-bold text-slate-900 text-lg shrink-0" />
+          <Link to="/my-bookings" className="text-xs text-slate-500 hover:text-indigo-600 shrink-0 hidden sm:block">My bookings</Link>
           <div className="flex-1 relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
             <input

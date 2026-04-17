@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import BrandLink from '../components/BrandLink'
 
 // JS getDay() returns 0=Sun,1=Mon...6=Sat — convert to DB 0=Mon...6=Sun
 function jsDayToDbDay(jsDay) {
@@ -316,7 +317,20 @@ export default function BookingPage() {
             </div>
           </div>
 
-          <p className="text-xs text-slate-400">If you need to cancel, contact {business.name} directly.</p>
+          <p className="text-xs text-slate-400 mb-5">If you need to cancel, contact {business.name} directly.</p>
+
+          <a
+            href={`/book/${slug}`}
+            className="block w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors text-center mb-2"
+          >
+            Done
+          </a>
+          <Link
+            to="/my-bookings"
+            className="block w-full text-center text-sm text-indigo-600 hover:text-indigo-800 py-1"
+          >
+            View my bookings →
+          </Link>
         </div>
       </div>
     )
@@ -337,6 +351,17 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Top nav */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+        <div className="max-w-2xl mx-auto px-4 flex items-center justify-between h-12">
+          <BrandLink className="font-bold text-slate-900 text-lg" />
+          <div className="flex items-center gap-4">
+            <Link to="/search" className="text-sm text-slate-500 hover:text-slate-800">← Search</Link>
+            <Link to="/my-bookings" className="text-sm text-slate-500 hover:text-indigo-600 hidden sm:block">My bookings</Link>
+          </div>
+        </div>
+      </header>
+
       {/* Facebook-style profile header */}
       <div className="bg-white border-b border-slate-200">
         {/* Cover photo */}
@@ -375,6 +400,9 @@ export default function BookingPage() {
             </p>
             {business.description && (
               <p className="text-sm text-slate-600 mt-2 max-w-lg">{business.description}</p>
+            )}
+            {business.phone && (
+              <p className="text-sm text-slate-500 mt-1">📞 {business.phone}</p>
             )}
           </div>
         </div>

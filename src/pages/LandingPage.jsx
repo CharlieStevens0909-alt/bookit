@@ -115,45 +115,6 @@ export default function LandingPage() {
         <p className="text-xs text-slate-400 mt-3">No credit card required</p>
       </section>
 
-      {/* Mock booking page preview */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full bg-red-300" />
-            <div className="w-3 h-3 rounded-full bg-yellow-300" />
-            <div className="w-3 h-3 rounded-full bg-green-300" />
-            <div className="flex-1 bg-white border border-slate-200 rounded-md px-3 py-1 mx-2 text-xs text-slate-400">
-              bookit.app/book/jims-barber
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="bg-white border-b border-slate-100 px-5 py-4">
-              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Barbershop</p>
-              <h3 className="text-lg font-bold text-slate-900 mt-0.5">Jim's Barber</h3>
-              <p className="text-sm text-slate-500">Greenock, Inverclyde</p>
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-sm font-semibold text-slate-700 mb-3">Select a service</p>
-              <div className="space-y-2">
-                {[
-                  { name: 'Classic Haircut', price: '£15.00', notes: 'Scissor or clippers' },
-                  { name: 'Beard Trim', price: '£8.00', notes: 'Shape and tidy' },
-                  { name: 'Cut & Beard', price: '£20.00', notes: 'Full groom' },
-                ].map(s => (
-                  <div key={s.name} className="border border-slate-200 rounded-lg px-4 py-3 flex justify-between items-center hover:border-indigo-300 hover:bg-indigo-50 transition-colors cursor-pointer group">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 group-hover:text-indigo-700">{s.name}</p>
-                      <p className="text-xs text-slate-400">{s.notes}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-slate-900">{s.price}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Who it's for */}
       <section className="bg-slate-50 border-y border-slate-100 py-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">

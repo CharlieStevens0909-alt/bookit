@@ -36,6 +36,7 @@ export default function ProfilePage() {
   const [draggingCover, setDraggingCover] = useState(false)
   const [draggingLogo, setDraggingLogo] = useState(false)
 
+  const [phone, setPhone] = useState(business.phone || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
@@ -69,7 +70,7 @@ export default function ProfilePage() {
   function onLogoDrop(e) { e.preventDefault(); setDraggingLogo(false); applyLogo(e.dataTransfer.files[0]) }
 
   async function handleSave() {
-    if (!logoFile && !coverFile) return
+    if (!logoFile && !coverFile && phone === (business.phone || '')) return
     setError(null)
     setSaving(true)
 
@@ -82,6 +83,7 @@ export default function ProfilePage() {
       if (coverFile) {
         updates.cover_url = await uploadFile(coverFile, `${user.id}/cover-${Date.now()}`)
       }
+      updates.phone = phone.trim() || null
 
       const { data, error } = await supabase
         .from('businesses')
@@ -106,13 +108,13 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
-  const hasChanges = logoFile || coverFile
+  const hasChanges = logoFile || coverFile || phone !== (business.phone || '')
 
   return (
     <div className="max-w-lg">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900">Profile photos</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Update the cover and profile picture on your booking page</p>
+        <h1 className="text-xl font-bold text-slate-900">Profile</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Update your photos and contact details shown on your booking page</p>
       </div>
 
       {/* Live preview */}
@@ -211,6 +213,21 @@ export default function ProfilePage() {
             {draggingLogo ? 'Drop to upload' : logoFile ? '✓ Ready to save' : 'Click or drag here'}
           </p>
         </div>
+      </div>
+
+      {/* Phone number */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Business phone <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          placeholder="e.g. 01475 123456"
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        <p className="text-xs text-slate-400 mt-1">Shown on your public booking page</p>
       </div>
 
       {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
