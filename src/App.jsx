@@ -10,12 +10,13 @@ import ServicesPage from './pages/ServicesPage'
 import HoursPage from './pages/AvailabilityPage'
 import BookingPage from './pages/BookingPage'
 import CustomerPage from './pages/CustomerPage'
+import LandingPage from './pages/LandingPage'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<div className="p-8 text-2xl font-bold">BookIt — landing page coming soon</div>} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
