@@ -322,15 +322,59 @@ export default function BookingPage() {
 
   const openDays = availability.map(a => a.day_of_week)
 
+  // Generate a consistent gradient from the business name for cover fallback
+  const gradients = [
+    ['#6366f1','#8b5cf6'],
+    ['#3b82f6','#06b6d4'],
+    ['#10b981','#14b8a6'],
+    ['#f59e0b','#ef4444'],
+    ['#ec4899','#8b5cf6'],
+  ]
+  const gradientIndex = business.name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % gradients.length
+  const [g1, g2] = gradients[gradientIndex]
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Business header */}
+      {/* Facebook-style profile header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-lg mx-auto px-4 py-5">
-          <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-0.5">{business.type}</p>
-          <h1 className="text-2xl font-bold text-slate-900">{business.name}</h1>
-          {business.location && <p className="text-sm text-slate-500 mt-0.5">{business.location}</p>}
-          {business.description && <p className="text-sm text-slate-600 mt-2">{business.description}</p>}
+        {/* Cover photo */}
+        <div
+          className="w-full h-40 sm:h-52 relative overflow-hidden"
+          style={
+            business.cover_url
+              ? { backgroundImage: `url(${business.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: `linear-gradient(135deg, ${g1}, ${g2})` }
+          }
+        />
+
+        {/* Avatar + info */}
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          {/* Avatar — overlaps cover */}
+          <div className="flex items-end gap-4 -mt-10 mb-3">
+            <div className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-white">
+              {business.logo_url ? (
+                <img src={business.logo_url} alt={business.name} className="w-full h-full object-cover" />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold"
+                  style={{ background: `linear-gradient(135deg, ${g1}, ${g2})` }}
+                >
+                  {business.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Business info */}
+          <div className="pb-5">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">{business.name}</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {[business.type, business.location].filter(Boolean).join(' · ')}
+            </p>
+            {business.description && (
+              <p className="text-sm text-slate-600 mt-2 max-w-lg">{business.description}</p>
+            )}
+          </div>
         </div>
       </div>
 
