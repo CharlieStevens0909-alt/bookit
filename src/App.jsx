@@ -8,6 +8,7 @@ import DashboardLayout from './pages/DashboardLayout'
 import DashboardPage from './pages/DashboardPage'
 import ServicesPage from './pages/ServicesPage'
 import AvailabilityPage from './pages/AvailabilityPage'
+import BookingPage from './pages/BookingPage'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="services" element={<ServicesPage />} />
           <Route path="availability" element={<AvailabilityPage />} />
         </Route>
+        <Route path="/book/:slug" element={<BookingPage />} />
       </Routes>
     </BrowserRouter>
   )
