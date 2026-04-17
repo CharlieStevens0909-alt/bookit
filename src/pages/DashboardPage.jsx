@@ -14,12 +14,67 @@ function formatTime(t) {
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+function CancelModal({ booking, onConfirm, onClose }) {
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleConfirm() {
+    setSaving(true)
+    await onConfirm(booking.id, reason.trim() || null)
+    setSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-xl z-10 p-5">
+        <h3 className="font-semibold text-slate-900 mb-0.5">Cancel booking</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Cancelling <strong>{booking.customer_name}</strong>'s {booking.services?.name} at {formatTime(booking.start_time)}
+        </p>
+
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Reason <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          rows={3}
+          placeholder="e.g. Staff member unavailable, emergency closure..."
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+        />
+        <p className="text-xs text-slate-400 mt-1 mb-4">
+          If provided, the customer will see this reason on their bookings page.
+        </p>
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleConfirm}
+            disabled={saving}
+            className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+          >
+            {saving ? 'Cancelling...' : 'Cancel booking'}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+          >
+            Keep it
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DayModal({ date, bookings, business, onCancel, onClose }) {
+  const [cancellingBooking, setCancellingBooking] = useState(null)
   const label = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long'
   })
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -76,15 +131,12 @@ function DayModal({ date, bookings, business, onCancel, onClose }) {
                     <p className="font-semibold text-slate-900 text-sm">{booking.customer_name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{booking.services?.name}</p>
                     <p className="text-xs text-slate-400">{booking.customer_email}</p>
+                    {booking.customer_phone && <p className="text-xs text-slate-400">{booking.customer_phone}</p>}
                   </div>
 
                   {/* Cancel */}
                   <button
-                    onClick={() => {
-                      if (confirm(`Cancel booking for ${booking.customer_name}?`)) {
-                        onCancel(booking.id)
-                      }
-                    }}
+                    onClick={() => setCancellingBooking(booking)}
                     className="text-xs text-red-400 hover:text-red-600 shrink-0 mt-0.5"
                   >
                     Cancel
@@ -96,6 +148,18 @@ function DayModal({ date, bookings, business, onCancel, onClose }) {
         </div>
       </div>
     </div>
+
+    {cancellingBooking && (
+      <CancelModal
+        booking={cancellingBooking}
+        onConfirm={async (id, reason) => {
+          await onCancel(id, reason)
+          setCancellingBooking(null)
+        }}
+        onClose={() => setCancellingBooking(null)}
+      />
+    )}
+    </>
   )
 }
 
@@ -141,8 +205,8 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
-  function cancelBooking(id) {
-    supabase.from('bookings').update({ status: 'cancelled' }).eq('id', id)
+  async function cancelBooking(id, reason) {
+    await supabase.from('bookings').update({ status: 'cancelled', cancellation_reason: reason || null }).eq('id', id)
     setBookings(prev => prev.filter(b => b.id !== id))
   }
 
@@ -277,10 +341,7 @@ export default function DashboardPage() {
           date={modalDate}
           bookings={modalBookings}
           business={business}
-          onCancel={(id) => {
-            cancelBooking(id)
-            setBookings(prev => prev.filter(b => b.id !== id))
-          }}
+          onCancel={cancelBooking}
           onClose={() => setModalDate(null)}
         />
       )}

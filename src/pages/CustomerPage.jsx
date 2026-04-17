@@ -145,13 +145,20 @@ export default function CustomerPage() {
                         {formatDate(booking.date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
                       </p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                      booking.status === 'cancelled'
-                        ? 'bg-red-50 text-red-500'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {booking.status === 'cancelled' ? 'Cancelled' : 'Completed'}
-                    </span>
+                    <div className="shrink-0 text-right">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        booking.status === 'cancelled'
+                          ? 'bg-red-50 text-red-500'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {booking.status === 'cancelled' ? 'Cancelled' : 'Completed'}
+                      </span>
+                      {booking.status === 'cancelled' && booking.cancellation_reason && (
+                        <p className="text-xs text-slate-400 mt-1 max-w-[140px]">
+                          "{booking.cancellation_reason}"
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
