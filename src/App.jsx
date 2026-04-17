@@ -11,6 +11,7 @@ import HoursPage from './pages/AvailabilityPage'
 import BookingPage from './pages/BookingPage'
 import CustomerPage from './pages/CustomerPage'
 import LandingPage from './pages/LandingPage'
+import SearchPage from './pages/SearchPage'
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="services" element={<ServicesPage />} />
           <Route path="hours" element={<HoursPage />} />
         </Route>
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/my-bookings" element={<CustomerPage />} />
         <Route path="/book/:slug" element={<BookingPage />} />
       </Routes>

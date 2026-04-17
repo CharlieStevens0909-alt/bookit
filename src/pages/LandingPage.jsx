@@ -70,6 +70,9 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <span className="font-bold text-slate-900 text-xl">BookIt</span>
           <div className="flex items-center gap-3">
+            <Link to="/search" className="text-sm text-slate-600 hover:text-slate-900 hidden sm:block">
+              Find a business
+            </Link>
             <Link to="/login" className="text-sm text-slate-600 hover:text-slate-900">
               Log in
             </Link>

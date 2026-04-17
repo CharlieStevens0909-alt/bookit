@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -69,7 +69,9 @@ export default function CustomerPage() {
         <div className="max-w-2xl mx-auto px-4 flex items-center justify-between h-14">
           <span className="font-bold text-slate-900 text-lg">BookIt</span>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 hidden sm:block">{user.email}</span>
+            <Link to="/search" className="text-sm text-indigo-600 font-medium hover:text-indigo-700">
+              Find a business
+            </Link>
             <button onClick={handleSignOut} className="text-sm text-slate-500 hover:text-slate-700">
               Sign out
             </button>
