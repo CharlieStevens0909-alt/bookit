@@ -20,7 +20,7 @@ const steps = [
   {
     number: '2',
     title: 'Add your services and hours',
-    description: 'List what you offer, set your prices, and tell BookIt when you\'re available each week.',
+    description: 'List what you offer, set your prices, and tell Inverclyde.Bookit when you\'re available each week.',
   },
   {
     number: '3',
@@ -71,7 +71,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-slate-800 transition-colors">← Back</button>
-            <span className="font-bold text-slate-900 text-xl">BookIt</span>
+            <span className="font-bold text-slate-900 text-xl">Inverclyde.Bookit</span>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/my-bookings" className="text-sm text-slate-600 hover:text-indigo-600 hidden sm:block">Home</Link>
@@ -124,7 +124,7 @@ export default function LandingPage() {
       <section className="bg-slate-50 border-y border-slate-100 py-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">Built for local service businesses</h2>
-          <p className="text-slate-500 text-sm mb-10">If you take appointments, BookIt is for you</p>
+          <p className="text-slate-500 text-sm mb-10">If you take appointments, Inverclyde.Bookit is for you</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {businesses.map(b => (
               <div key={b.name} className="bg-white rounded-xl border border-slate-200 py-4 px-3 text-center">
@@ -180,7 +180,7 @@ export default function LandingPage() {
           Ready to stop missing bookings?
         </h2>
         <p className="text-slate-500 mb-7 max-w-md mx-auto text-sm leading-relaxed">
-          Join businesses in Inverclyde and beyond who use BookIt to take appointments online. Free to get started.
+          Join businesses in Inverclyde and beyond who use Inverclyde.Bookit to take appointments online. Free to get started.
         </p>
         <Link
           to="/signup"
@@ -193,8 +193,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-slate-100 py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="font-bold text-slate-900">BookIt</span>
-          <p className="text-xs text-slate-400">© 2026 BookIt. Built for local businesses.</p>
+          <span className="font-bold text-slate-900">Inverclyde.Bookit</span>
+          <p className="text-xs text-slate-400">© 2026 Inverclyde.Bookit. Built for local businesses.</p>
           <div className="flex gap-4">
             <Link to="/login" className="text-xs text-slate-400 hover:text-slate-600">Log in</Link>
             <Link to="/signup" className="text-xs text-slate-400 hover:text-slate-600">Sign up</Link>

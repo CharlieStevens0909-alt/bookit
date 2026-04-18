@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useBusiness } from '../lib/BusinessContext'
 
-const emptyForm = { name: '', price: '', notes: '' }
+const emptyForm = { name: '', price: '', duration_mins: '', notes: '' }
 
 export default function ServicesPage() {
   const { business } = useBusiness()
@@ -13,6 +13,8 @@ export default function ServicesPage() {
   const [editForm, setEditForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const dragItem = useRef(null)
+  const dragOver = useRef(null)
 
   useEffect(() => {
     if (!business) return
@@ -24,6 +26,7 @@ export default function ServicesPage() {
       .from('services')
       .select('*')
       .eq('business_id', business.id)
+      .order('sort_order')
       .order('name')
     setServices(data || [])
     setLoading(false)
@@ -39,43 +42,35 @@ export default function ServicesPage() {
       .insert({
         business_id: business.id,
         name: form.name,
-        price: parseFloat(form.price),
+        price: form.price !== '' ? parseFloat(form.price) : null,
+        duration_mins: form.duration_mins !== '' ? parseInt(form.duration_mins) : null,
         notes: form.notes || null,
+        sort_order: services.length,
+        is_active: true,
       })
       .select()
       .single()
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setServices(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
-      setForm(emptyForm)
-    }
-
+    if (error) { setError(error.message) }
+    else { setServices(prev => [...prev, data]); setForm(emptyForm) }
     setSaving(false)
   }
 
   async function handleSaveEdit(id) {
     setSaving(true)
-
     const { data, error } = await supabase
       .from('services')
       .update({
         name: editForm.name,
-        price: parseFloat(editForm.price),
+        price: editForm.price !== '' ? parseFloat(editForm.price) : null,
+        duration_mins: editForm.duration_mins !== '' ? parseInt(editForm.duration_mins) : null,
         notes: editForm.notes || null,
       })
       .eq('id', id)
       .select()
       .single()
 
-    if (!error) {
-      setServices(prev =>
-        prev.map(s => s.id === id ? data : s).sort((a, b) => a.name.localeCompare(b.name))
-      )
-      setEditingId(null)
-    }
-
+    if (!error) { setServices(prev => prev.map(s => s.id === id ? data : s)); setEditingId(null) }
     setSaving(false)
   }
 
@@ -85,79 +80,125 @@ export default function ServicesPage() {
     setServices(prev => prev.filter(s => s.id !== id))
   }
 
+  async function toggleActive(id, current) {
+    await supabase.from('services').update({ is_active: !current }).eq('id', id)
+    setServices(prev => prev.map(s => s.id === id ? { ...s, is_active: !current } : s))
+  }
+
   function startEdit(service) {
     setEditingId(service.id)
     setEditForm({
       name: service.name,
-      price: service.price.toString(),
+      price: service.price != null ? service.price.toString() : '',
+      duration_mins: service.duration_mins != null ? service.duration_mins.toString() : '',
       notes: service.notes || '',
     })
   }
 
+  function handleDragStart(index) { dragItem.current = index }
+  function handleDragEnter(index) { dragOver.current = index }
+
+  async function handleDragEnd() {
+    if (dragItem.current === null || dragOver.current === null || dragItem.current === dragOver.current) return
+    const reordered = [...services]
+    const dragged = reordered.splice(dragItem.current, 1)[0]
+    reordered.splice(dragOver.current, 0, dragged)
+    const updated = reordered.map((s, i) => ({ ...s, sort_order: i }))
+    setServices(updated)
+    dragItem.current = null
+    dragOver.current = null
+    await Promise.all(updated.map(s => supabase.from('services').update({ sort_order: s.sort_order }).eq('id', s.id)))
+  }
+
   const inputClass = "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+  const activeCount = services.filter(s => s.is_active).length
+  const avgPrice = services.filter(s => s.price != null).length > 0
+    ? services.filter(s => s.price != null).reduce((s, v) => s + Number(v.price), 0) / services.filter(s => s.price != null).length
+    : null
 
   if (loading) return <p className="text-slate-400">Loading...</p>
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-xl font-bold text-slate-900">Services</h1>
         <p className="text-slate-500 text-sm mt-0.5">Manage what customers can book</p>
       </div>
 
+      {/* Summary */}
+      {services.length > 0 && (
+        <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
+          <span><strong className="text-slate-900">{services.length}</strong> service{services.length !== 1 ? 's' : ''}</span>
+          <span><strong className="text-slate-900">{activeCount}</strong> active</span>
+          {avgPrice != null && <span>avg <strong className="text-slate-900">£{avgPrice.toFixed(2)}</strong></span>}
+        </div>
+      )}
+
       {/* Services list */}
       {services.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 mb-6">
-          {services.map(service => (
-            <div key={service.id} className="p-4">
+          {services.map((service, index) => (
+            <div
+              key={service.id}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragEnter={() => handleDragEnter(index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={e => e.preventDefault()}
+              className={`p-4 transition-opacity ${!service.is_active ? 'opacity-50' : ''}`}
+            >
               {editingId === service.id ? (
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-2 items-center">
-                    <input
-                      className={`${inputClass} flex-1 min-w-32`}
-                      value={editForm.name}
-                      onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Service name"
-                    />
-                    <input
-                      className={`${inputClass} w-28`}
-                      type="number"
-                      step="0.01"
-                      value={editForm.price}
-                      onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
-                      placeholder="£ Price"
-                    />
+                    <input className={`${inputClass} flex-1 min-w-32`} value={editForm.name}
+                      onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} placeholder="Service name" />
+                    <input className={`${inputClass} w-28`} type="number" step="0.01" value={editForm.price}
+                      onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))} placeholder="£ Price (opt)" />
+                    <div className="flex items-center gap-1.5">
+                      <input className={`${inputClass} w-20`} type="number" min="5" value={editForm.duration_mins}
+                        onChange={e => setEditForm(p => ({ ...p, duration_mins: e.target.value }))} placeholder="Mins" />
+                      <span className="text-xs text-slate-400">mins</span>
+                    </div>
                   </div>
-                  <input
-                    className={`${inputClass} w-full`}
-                    value={editForm.notes}
-                    onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Notes (optional)"
-                  />
+                  <input className={`${inputClass} w-full`} value={editForm.notes}
+                    onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" />
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleSaveEdit(service.id)}
-                      disabled={saving}
-                      className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="text-sm text-slate-500 hover:text-slate-700 px-2"
-                    >
-                      Cancel
-                    </button>
+                    <button onClick={() => handleSaveEdit(service.id)} disabled={saving}
+                      className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50">Save</button>
+                    <button onClick={() => setEditingId(null)} className="text-sm text-slate-500 hover:text-slate-700 px-2">Cancel</button>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-slate-900 text-sm">{service.name}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">£{Number(service.price).toFixed(2)}</p>
-                    {service.notes && <p className="text-xs text-slate-400 mt-0.5">{service.notes}</p>}
+                <div className="flex items-center gap-3">
+                  {/* Drag handle */}
+                  <div className="text-slate-300 cursor-grab active:cursor-grabbing select-none text-lg leading-none">⠿</div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-slate-900 text-sm">{service.name}</p>
+                      {!service.is_active && (
+                        <span className="text-xs bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">Hidden</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      {service.price != null && <p className="text-xs text-slate-500">£{Number(service.price).toFixed(2)}</p>}
+                      {service.duration_mins != null && (
+                        <p className="text-xs text-slate-400">
+                          {service.duration_mins >= 60
+                            ? `${Math.floor(service.duration_mins / 60)}h${service.duration_mins % 60 > 0 ? ` ${service.duration_mins % 60}m` : ''}`
+                            : `${service.duration_mins} mins`}
+                        </p>
+                      )}
+                      {service.notes && <p className="text-xs text-slate-400 truncate">{service.notes}</p>}
+                    </div>
                   </div>
-                  <div className="flex gap-3 shrink-0">
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* Active toggle */}
+                    <button type="button" onClick={() => toggleActive(service.id, service.is_active)}
+                      className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${service.is_active ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${service.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
                     <button onClick={() => startEdit(service)} className="text-xs text-slate-500 hover:text-slate-700">Edit</button>
                     <button onClick={() => handleDelete(service.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
                   </div>
@@ -175,42 +216,30 @@ export default function ServicesPage() {
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-40">
               <label className="block text-xs text-slate-500 mb-1">Name</label>
-              <input
-                className={`${inputClass} w-full`}
-                required
-                value={form.name}
-                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Haircut"
-              />
+              <input className={`${inputClass} w-full`} required value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Haircut" />
             </div>
             <div className="w-28">
-              <label className="block text-xs text-slate-500 mb-1">Price (£)</label>
-              <input
-                className={`${inputClass} w-full`}
-                type="number"
-                required
-                min={0}
-                step="0.01"
-                value={form.price}
-                onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
-                placeholder="15.00"
-              />
+              <label className="block text-xs text-slate-500 mb-1">Price (£) <span className="text-slate-300">(optional)</span></label>
+              <input className={`${inputClass} w-full`} type="number" min={0} step="0.01" value={form.price}
+                onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="15.00" />
+            </div>
+            <div className="w-28">
+              <label className="block text-xs text-slate-500 mb-1">Duration <span className="text-slate-300">(optional)</span></label>
+              <div className="flex items-center gap-1">
+                <input className={`${inputClass} w-full`} type="number" min={5} value={form.duration_mins}
+                  onChange={e => setForm(p => ({ ...p, duration_mins: e.target.value }))} placeholder="30" />
+                <span className="text-xs text-slate-400 shrink-0">m</span>
+              </div>
             </div>
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Notes <span className="text-slate-300">(optional)</span></label>
-            <input
-              className={`${inputClass} w-full`}
-              value={form.notes}
-              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-              placeholder="e.g. Includes wash and style"
-            />
+            <input className={`${inputClass} w-full`} value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. Includes wash and style" />
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-          >
+          <button type="submit" disabled={saving}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
             Add service
           </button>
         </form>

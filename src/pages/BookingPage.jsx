@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import BrandLink from '../components/BrandLink'
 
 // JS getDay() returns 0=Sun,1=Mon...6=Sat — convert to DB 0=Mon...6=Sun
@@ -27,19 +28,22 @@ function toDateString(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-function generateSlots(startTime, endTime, durationMins, existingBookings) {
+function generateSlots(startTime, endTime, durationMins, existingBookings, breakWindow) {
   const slots = []
   let cur = timeToMinutes(startTime.slice(0, 5))
   const end = timeToMinutes(endTime.slice(0, 5))
+  const bStart = breakWindow ? timeToMinutes(breakWindow.start) : null
+  const bEnd = breakWindow ? timeToMinutes(breakWindow.end) : null
 
   while (cur + durationMins <= end) {
     const slotEnd = cur + durationMins
-    const overlaps = existingBookings.some(b => {
-      const bStart = timeToMinutes(b.start_time)
-      const bEnd = timeToMinutes(b.end_time)
-      return cur < bEnd && slotEnd > bStart
+    const taken = existingBookings.some(b => {
+      const bs = timeToMinutes(b.start_time)
+      const be = timeToMinutes(b.end_time)
+      return cur < be && slotEnd > bs
     })
-    if (!overlaps) slots.push({ start: minutesToTime(cur), end: minutesToTime(slotEnd) })
+    const inBreak = breakWindow && cur < bEnd && slotEnd > bStart
+    if (!inBreak) slots.push({ start: minutesToTime(cur), end: minutesToTime(slotEnd), taken })
     cur += durationMins
   }
 
@@ -47,7 +51,7 @@ function generateSlots(startTime, endTime, durationMins, existingBookings) {
 }
 
 // Simple calendar component
-function Calendar({ selected, onSelect, openDays }) {
+function Calendar({ selected, onSelect, openDays, closedDates = new Set() }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
@@ -101,10 +105,10 @@ function Calendar({ selected, onSelect, openDays }) {
           if (!date) return <div key={i} />
 
           const isPast = date < today
-          const dbDay = jsDayToDbDay(date.getDay())
-          const isClosed = !openDays.includes(dbDay)
-          const disabled = isPast || isClosed
           const dateStr = toDateString(date)
+          const dbDay = jsDayToDbDay(date.getDay())
+          const isClosed = !openDays.includes(dbDay) || closedDates.has(dateStr)
+          const disabled = isPast || isClosed
           const isSelected = selected === dateStr
           const isToday = toDateString(date) === toDateString(today)
 
@@ -162,6 +166,7 @@ function Steps({ current }) {
 export default function BookingPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [business, setBusiness] = useState(null)
   const [services, setServices] = useState([])
   const [availability, setAvailability] = useState([])
@@ -177,11 +182,23 @@ export default function BookingPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [partySize, setPartySize] = useState(2)
+  const [resTime, setResTime] = useState('19:00')
+  const [specialRequests, setSpecialRequests] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [booking, setBooking] = useState(null)
   const [reviews, setReviews] = useState([])
   const [avgRating, setAvgRating] = useState(null)
+  const [specialClosures, setSpecialClosures] = useState(new Set())
+  const [countdown, setCountdown] = useState(4)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (user) {
+      if (user.email) setEmail(user.email)
+      if (user.user_metadata?.name) setName(user.user_metadata.name)
+    }
+  }, [user])
 
   useEffect(() => {
     async function load() {
@@ -194,11 +211,13 @@ export default function BookingPage() {
       if (!biz) { setNotFound(true); setLoading(false); return }
       setBusiness(biz)
 
-      const [{ data: svcs }, { data: avail }, { data: revs }] = await Promise.all([
-        supabase.from('services').select('*').eq('business_id', biz.id).order('name'),
+      const [{ data: svcs }, { data: avail }, { data: revs }, { data: cls }] = await Promise.all([
+        supabase.from('services').select('*').eq('business_id', biz.id).eq('is_active', true).order('sort_order').order('name'),
         supabase.from('availability').select('*').eq('business_id', biz.id),
         supabase.from('reviews').select('*').eq('business_id', biz.id).order('created_at', { ascending: false }),
+        supabase.from('special_closures').select('date').eq('business_id', biz.id),
       ])
+      setSpecialClosures(new Set((cls || []).map(c => c.date)))
 
       setServices(svcs || [])
       setAvailability(avail || [])
@@ -230,15 +249,53 @@ export default function BookingPage() {
       .eq('date', date)
       .eq('status', 'confirmed')
 
+    const breakWindow = dayAvail.break_start && dayAvail.break_end
+      ? { start: dayAvail.break_start.slice(0, 5), end: dayAvail.break_end.slice(0, 5) }
+      : null
+
     const generated = generateSlots(
       dayAvail.start_time,
       dayAvail.end_time,
-      30,
-      existing || []
+      selectedService?.duration_mins || business.slot_duration || 30,
+      existing || [],
+      breakWindow
     )
 
     setSlots(generated)
     setSlotsLoading(false)
+  }
+
+  async function handleRestaurantSubmit(e) {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert({
+        business_id: business.id,
+        customer_name: name,
+        customer_email: email,
+        customer_phone: phone || null,
+        date: selectedDate,
+        start_time: resTime,
+        end_time: resTime,
+        party_size: partySize,
+        special_requests: specialRequests.trim() || null,
+        status: 'pending',
+      })
+      .select()
+      .single()
+
+    if (error) { setError('Something went wrong. Please try again.'); setSubmitting(false); return }
+    setBooking(data)
+    setSubmitting(false)
+    let secs = 4
+    const timer = setInterval(() => {
+      secs -= 1
+      setCountdown(secs)
+      if (secs <= 0) { clearInterval(timer); navigate('/my-bookings') }
+    }, 1000)
   }
 
   async function handleSubmit(e) {
@@ -270,6 +327,38 @@ export default function BookingPage() {
 
     setBooking(data)
     setSubmitting(false)
+
+    let secs = 4
+    const timer = setInterval(() => {
+      secs -= 1
+      setCountdown(secs)
+      if (secs <= 0) { clearInterval(timer); navigate('/my-bookings') }
+    }, 1000)
+  }
+
+  const isOwnPage = business && user && business.user_id === user.id
+  if (user?.user_metadata?.role === 'business' && !isOwnPage && business) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4 text-2xl">🚫</div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Business accounts can't book here</h1>
+          <p className="text-slate-500 text-sm mb-6">
+            You're signed in as a business owner. You can only book slots on your own page.
+          </p>
+          <button onClick={() => navigate('/dashboard')}
+            className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors mb-3">
+            Go to your dashboard
+          </button>
+          <p className="text-xs text-slate-400">
+            Want to book as a customer?{' '}
+            <a href="/signup" className="text-indigo-600 hover:underline font-medium">
+              Create a customer account
+            </a>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -328,30 +417,43 @@ export default function BookingPage() {
 
           <p className="text-xs text-slate-400 mb-5">If you need to cancel, contact {business.name} directly.</p>
 
-          <a
-            href={`/book/${slug}`}
+          <Link
+            to="/my-bookings"
             className="block w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors text-center mb-2"
           >
-            Done
-          </a>
+            Go to my bookings →
+          </Link>
           <Link
             to={`/review/${booking.id}`}
             className="block w-full text-center text-sm text-yellow-600 hover:text-yellow-800 py-1 font-medium"
           >
             ★ Leave a review
           </Link>
-          <Link
-            to="/my-bookings"
-            className="block w-full text-center text-sm text-indigo-600 hover:text-indigo-800 py-1"
-          >
-            View my bookings →
-          </Link>
+          <p className="text-xs text-slate-400 text-center">
+            Redirecting in {countdown}…
+          </p>
         </div>
       </div>
     )
   }
 
   const openDays = availability.map(a => a.day_of_week)
+  const isRestaurant = business.type?.toLowerCase().includes('restaurant')
+
+  // Merge temp closure dates into specialClosures
+  const allClosedDates = (() => {
+    const s = new Set(specialClosures)
+    const { temp_closure_start, temp_closure_end } = business
+    if (temp_closure_start && temp_closure_end) {
+      const cur = new Date(temp_closure_start + 'T00:00:00')
+      const end = new Date(temp_closure_end + 'T00:00:00')
+      while (cur <= end) {
+        s.add(cur.toISOString().split('T')[0])
+        cur.setDate(cur.getDate() + 1)
+      }
+    }
+    return s
+  })()
 
   // Generate a consistent gradient from the business name for cover fallback
   const gradients = [
@@ -430,6 +532,38 @@ export default function BookingPage() {
         </div>
       </div>
 
+      {/* Notice board */}
+      {(business.notice || business.notice_image_url) && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
+            {business.notice && <p className="text-sm text-amber-800 font-medium mb-3">📢 {business.notice}</p>}
+            {business.notice_image_url && (
+              <img src={business.notice_image_url} alt="Notice" className="rounded-xl w-full object-cover max-h-72" />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Temp closure banner */}
+      {(() => {
+        const today = new Date().toISOString().split('T')[0]
+        const { temp_closure_start: s, temp_closure_end: e } = business
+        if (!s || !e) return null
+        const active = today >= s && today <= e
+        const upcoming = today < s
+        if (!active && !upcoming) return null
+        const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+        return (
+          <div className="bg-red-50 border-b border-red-200">
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3">
+              <p className="text-sm text-red-700 font-medium">
+                🚫 {active ? 'Temporarily closed' : 'Upcoming closure'}: {fmt(s)} – {fmt(e)}
+              </p>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Reviews */}
       {reviews.length > 0 && (
         <div className="border-t border-slate-100 bg-white">
@@ -461,10 +595,124 @@ export default function BookingPage() {
       )}
 
       <div className="max-w-lg mx-auto px-4 py-8">
-        <Steps current={step} />
+        {/* Restaurant reservation flow */}
+        {isRestaurant && (
+          <div>
+            {!booking && (
+              <>
+                {step === 1 && (
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900 mb-4">Pick a date</h2>
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+                      <Calendar
+                        selected={selectedDate}
+                        openDays={openDays.length > 0 ? openDays : [0,1,2,3,4,5,6]}
+                        closedDates={allClosedDates}
+                        onSelect={date => { setSelectedDate(date); setStep(2) }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => setStep(1)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
+                      <h2 className="text-base font-semibold text-slate-900">Reservation details</h2>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
+                        <input
+                          type="time"
+                          value={resTime}
+                          onChange={e => setResTime(e.target.value)}
+                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Party size</label>
+                        <div className="flex flex-wrap gap-2">
+                          {[1,2,3,4,5,6,7,8].map(n => (
+                            <button key={n} type="button" onClick={() => setPartySize(n)}
+                              className={`w-10 h-10 rounded-lg text-sm font-medium border transition-colors ${partySize === n ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'}`}>
+                              {n}
+                            </button>
+                          ))}
+                          <div className="flex items-center gap-1.5">
+                            <input type="number" min="1" max="100" value={partySize > 8 ? partySize : ''}
+                              onChange={e => setPartySize(Math.max(1, parseInt(e.target.value) || 1))}
+                              placeholder="9+"
+                              className="w-16 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button onClick={() => setStep(3)}
+                      className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors">
+                      Continue
+                    </button>
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => setStep(2)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
+                      <h2 className="text-base font-semibold text-slate-900">Your details</h2>
+                    </div>
+
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 text-sm text-slate-700">
+                      <p className="font-medium">{new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">{formatTime(resTime)} · {partySize} {partySize === 1 ? 'guest' : 'guests'}</p>
+                      <p className="text-xs text-amber-600 mt-1 font-medium">Reservation request — owner will confirm</p>
+                    </div>
+
+                    <form onSubmit={handleRestaurantSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Your name</label>
+                        <input type="text" required value={name} onChange={e => setName(e.target.value)}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Email address</label>
+                        <input type="email" required value={email} onChange={e => !user && setEmail(e.target.value)}
+                          readOnly={!!user}
+                          className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${user ? 'bg-slate-50 text-slate-500 cursor-default' : ''}`} />
+                        {user && <p className="text-xs text-slate-400 mt-1">Linked to your account</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Phone number</label>
+                        <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Special requests <span className="text-slate-400 font-normal">(optional)</span></label>
+                        <textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)}
+                          rows={3} maxLength={300}
+                          placeholder="Dietary requirements, occasion, high chair needed..."
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none" />
+                      </div>
+                      {error && <p className="text-red-500 text-sm">{error}</p>}
+                      <button type="submit" disabled={submitting}
+                        className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                        {submitting ? 'Requesting...' : 'Request reservation'}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {!isRestaurant && <Steps current={step} />}
 
         {/* Step 1: Service */}
-        {step === 1 && (
+        {!isRestaurant && step === 1 && (
           <div>
             <h2 className="text-base font-semibold text-slate-900 mb-4">Select a service</h2>
             {services.length === 0 ? (
@@ -480,7 +728,9 @@ export default function BookingPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-slate-900 text-sm group-hover:text-indigo-700">{service.name}</span>
-                      <span className="font-semibold text-slate-900 text-sm">£{Number(service.price).toFixed(2)}</span>
+                      <span className="font-semibold text-slate-900 text-sm">
+                        {service.price != null ? `£${Number(service.price).toFixed(2)}` : 'Price not determined'}
+                      </span>
                     </div>
                     {service.notes && <p className="text-xs text-slate-400 mt-0.5">{service.notes}</p>}
                   </button>
@@ -491,7 +741,7 @@ export default function BookingPage() {
         )}
 
         {/* Step 2: Date */}
-        {step === 2 && (
+        {!isRestaurant && step === 2 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <button onClick={() => setStep(1)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
@@ -510,6 +760,7 @@ export default function BookingPage() {
                   <Calendar
                     selected={selectedDate}
                     openDays={openDays}
+                    closedDates={specialClosures}
                     onSelect={(date) => {
                       setSelectedDate(date)
                       loadSlots(date)
@@ -526,7 +777,7 @@ export default function BookingPage() {
         )}
 
         {/* Step 3: Time slot */}
-        {step === 3 && (
+        {!isRestaurant && step === 3 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <button onClick={() => setStep(2)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
@@ -547,14 +798,24 @@ export default function BookingPage() {
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {slots.map(slot => (
-                  <button
-                    key={slot.start}
-                    type="button"
-                    onClick={() => { setSelectedSlot(slot); setStep(4) }}
-                    className="bg-white border border-slate-200 rounded-lg py-2.5 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                  >
-                    {formatTime(slot.start)}
-                  </button>
+                  slot.taken ? (
+                    <div
+                      key={slot.start}
+                      className="bg-slate-50 border border-slate-200 rounded-lg py-2.5 text-center cursor-not-allowed"
+                    >
+                      <p className="text-xs font-medium text-slate-400">{formatTime(slot.start)}</p>
+                      <p className="text-xs text-red-400 mt-0.5">Booked</p>
+                    </div>
+                  ) : (
+                    <button
+                      key={slot.start}
+                      type="button"
+                      onClick={() => { setSelectedSlot(slot); setStep(4) }}
+                      className="bg-white border border-slate-200 rounded-lg py-2.5 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                    >
+                      {formatTime(slot.start)}
+                    </button>
+                  )
                 ))}
               </div>
             )}
@@ -562,7 +823,7 @@ export default function BookingPage() {
         )}
 
         {/* Step 4: Details */}
-        {step === 4 && (
+        {!isRestaurant && step === 4 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <button onClick={() => setStep(3)} className="text-slate-400 hover:text-slate-600 text-sm">← Back</button>
@@ -573,7 +834,9 @@ export default function BookingPage() {
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 text-sm">
               <div className="flex justify-between text-slate-700">
                 <span>{selectedService.name}</span>
-                <span className="font-medium">£{Number(selectedService.price).toFixed(2)}</span>
+                <span className="font-medium">
+                  {selectedService.price != null ? `£${Number(selectedService.price).toFixed(2)}` : 'Price not determined'}
+                </span>
               </div>
               <div className="text-slate-500 text-xs mt-1">
                 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -599,9 +862,11 @@ export default function BookingPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  onChange={e => !user && setEmail(e.target.value)}
+                  readOnly={!!user}
+                  className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${user ? 'bg-slate-50 text-slate-500 cursor-default' : ''}`}
                 />
+                {user && <p className="text-xs text-slate-400 mt-1">Linked to your account</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Phone number</label>
@@ -624,9 +889,11 @@ export default function BookingPage() {
                 {submitting ? 'Confirming...' : 'Confirm booking'}
               </button>
 
-              <p className="text-xs text-slate-400 text-center">
-                No account needed. Free to book.
-              </p>
+              {!user && (
+                <p className="text-xs text-slate-400 text-center">
+                  No account needed. Free to book.
+                </p>
+              )}
             </form>
           </div>
         )}

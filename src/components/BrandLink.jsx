@@ -8,7 +8,7 @@ export default function BrandLink({ className }) {
 
   return (
     <Link to={to} className={className}>
-      BookIt
+      Inverclyde.Bookit
     </Link>
   )
 }

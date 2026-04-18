@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">BookIt</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Inverclyde.Bookit</h1>
           <p className="text-slate-500 text-sm mt-1">Welcome back</p>
         </div>
 

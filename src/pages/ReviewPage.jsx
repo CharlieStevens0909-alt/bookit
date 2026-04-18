@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import PageNav from '../components/PageNav'
+import { useAuth } from '../hooks/useAuth'
 
 function Stars({ value, onChange, readonly = false }) {
   const [hovered, setHovered] = useState(0)
@@ -42,6 +43,25 @@ function formatTime(t) {
 
 export default function ReviewPage() {
   const { bookingId } = useParams()
+  const { user } = useAuth()
+
+  if (user?.user_metadata?.role === 'business') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4 text-2xl">🚫</div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Business owners can't leave reviews</h1>
+          <p className="text-slate-500 text-sm mb-6">
+            Reviews are for customers only. If you'd like to see your reviews, head to your dashboard.
+          </p>
+          <Link to="/dashboard"
+            className="block w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors text-center">
+            Go to your dashboard
+          </Link>
+        </div>
+      </div>
+    )
+  }
   const [booking, setBooking] = useState(null)
   const [existing, setExisting] = useState(null)
   const [loading, setLoading] = useState(true)
