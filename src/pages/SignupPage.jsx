@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import PageNav from '../components/PageNav'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -55,7 +56,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="min-h-screen bg-slate-50">
+      <PageNav />
+      <div className="flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900">BookIt</h1>
@@ -113,7 +116,6 @@ export default function SignupPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="you@example.com"
                 />
               </div>
               <div>
@@ -125,7 +127,6 @@ export default function SignupPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Min. 6 characters"
                 />
               </div>
 
@@ -152,6 +153,7 @@ export default function SignupPage() {
             Log in
           </Link>
         </p>
+      </div>
       </div>
     </div>
   )

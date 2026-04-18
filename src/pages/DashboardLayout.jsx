@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { BusinessContext } from '../lib/BusinessContext'
@@ -7,6 +7,7 @@ import { BusinessContext } from '../lib/BusinessContext'
 export default function DashboardLayout() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [business, setBusiness] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -54,9 +55,17 @@ export default function DashboardLayout() {
         <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
           <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
             <div className="flex items-center gap-6">
-              <Link to="/dashboard" className="font-bold text-slate-900 text-lg">
-                BookIt
-              </Link>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  ← Back
+                </button>
+                <Link to="/dashboard" className="font-bold text-slate-900 text-lg">
+                  BookIt
+                </Link>
+              </div>
               <nav className="hidden sm:flex items-center gap-1">
                 <NavLink to="/dashboard" end className={navClass}>Overview</NavLink>
                 <NavLink to="/dashboard/services" className={navClass}>Services</NavLink>
@@ -65,6 +74,12 @@ export default function DashboardLayout() {
               </nav>
             </div>
             <div className="flex items-center gap-3">
+              <Link
+                to="/my-bookings"
+                className="text-xs text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-colors hidden sm:block"
+              >
+                Home
+              </Link>
               {business && (
                 <a
                   href={`/book/${business.slug}`}

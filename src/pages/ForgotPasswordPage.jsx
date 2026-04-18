@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import PageNav from '../components/PageNav'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -45,7 +46,9 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen bg-slate-50">
+      <PageNav />
+      <div className="flex items-center justify-center px-4 py-16">
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 w-full max-w-md">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Reset your password</h1>
@@ -61,7 +64,6 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="you@example.com"
             />
           </div>
 
@@ -82,6 +84,7 @@ export default function ForgotPasswordPage() {
             Back to login
           </Link>
         </p>
+      </div>
       </div>
     </div>
   )

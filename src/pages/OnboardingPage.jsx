@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import PageNav from '../components/PageNav'
+import { geocodeAddress } from '../lib/geocode'
 
 const BUSINESS_TYPES = [
   'Barbershop', 'Personal trainer', 'Tutor', 'Therapist',
@@ -36,7 +38,7 @@ export default function OnboardingPage() {
   const logoInputRef = useRef()
   const coverInputRef = useRef()
 
-  const [form, setForm] = useState({ name: '', type: '', location: '', description: '', phone: '' })
+  const [form, setForm] = useState({ name: '', type: '', location: '', postcode: '', description: '', phone: '' })
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
@@ -83,11 +85,21 @@ export default function OnboardingPage() {
         cover_url = await uploadFile(coverFile, `${user.id}/cover-${Date.now()}`)
       }
 
+      const coords = await geocodeAddress(form.postcode)
+      if (!coords) {
+        setError("We couldn't find that postcode. Please double-check it and try again.")
+        setLoading(false)
+        return
+      }
+
       const { error } = await supabase.from('businesses').insert({
         user_id: user.id,
         name: form.name,
         type: form.type,
         location: form.location,
+        address: form.postcode.trim().toUpperCase(),
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         description: form.description,
         phone: form.phone || null,
         slug,
@@ -109,7 +121,9 @@ export default function OnboardingPage() {
   const [g1, g2] = gradients[gi]
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10">
+    <div className="min-h-screen bg-slate-50">
+      <PageNav />
+      <div className="px-4 py-10">
       <div className="max-w-lg mx-auto">
         <div className="mb-6">
           <p className="text-indigo-600 font-medium text-sm mb-1">Setup</p>
@@ -176,7 +190,6 @@ export default function OnboardingPage() {
               <input
                 type="text" name="name" required value={form.name} onChange={handleChange}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="e.g. Jim's Barber"
               />
               {slugPreview && (
                 <p className="text-xs text-slate-400 mt-1">
@@ -197,12 +210,20 @@ export default function OnboardingPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Town / City</label>
               <input
                 type="text" name="location" required value={form.location} onChange={handleChange}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="e.g. Greenock, Inverclyde"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Postcode</label>
+              <input
+                type="text" name="postcode" required value={form.postcode} onChange={handleChange}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent uppercase"
+              />
+              <p className="text-xs text-slate-400 mt-1">Used to show your business in location-based searches</p>
             </div>
 
             <div>
@@ -212,7 +233,6 @@ export default function OnboardingPage() {
               <input
                 type="tel" name="phone" value={form.phone} onChange={handleChange}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="e.g. 01475 123456"
               />
             </div>
 
@@ -223,7 +243,6 @@ export default function OnboardingPage() {
               <textarea
                 name="description" value={form.description} onChange={handleChange} rows={2}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                placeholder="A short intro shown on your booking page"
               />
             </div>
 
@@ -237,6 +256,7 @@ export default function OnboardingPage() {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   )

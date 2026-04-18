@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import BrandLink from '../components/BrandLink'
@@ -20,6 +20,7 @@ export default function CustomerPage() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
+  const [reviews, setReviews] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,7 +37,20 @@ export default function CustomerPage() {
       .order('date', { ascending: false })
       .order('start_time', { ascending: false })
 
-    setBookings(data || [])
+    const bookingList = data || []
+    setBookings(bookingList)
+
+    if (bookingList.length > 0) {
+      const ids = bookingList.map(b => b.id)
+      const { data: revs } = await supabase
+        .from('reviews')
+        .select('booking_id, rating')
+        .in('booking_id', ids)
+      const revMap = {}
+      for (const r of revs || []) revMap[r.booking_id] = r
+      setReviews(revMap)
+    }
+
     setLoading(false)
   }
 
@@ -68,7 +82,10 @@ export default function CustomerPage() {
       {/* Nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-2xl mx-auto px-4 flex items-center justify-between h-14">
-          <BrandLink className="font-bold text-slate-900 text-lg" />
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-slate-800 transition-colors">← Back</button>
+            <BrandLink className="font-bold text-slate-900 text-lg" />
+          </div>
           <div className="flex items-center gap-4">
             <Link to="/search" className="text-sm text-indigo-600 font-medium hover:text-indigo-700">
               Search
@@ -136,8 +153,11 @@ export default function CustomerPage() {
               Past & cancelled
             </h2>
             <div className="space-y-3">
-              {past.map(booking => (
-                <div key={booking.id} className="bg-white rounded-xl border border-slate-200 p-4 opacity-60">
+              {past.map(booking => {
+                const reviewed = reviews[booking.id]
+                const canReview = booking.status !== 'cancelled'
+                return (
+                <div key={booking.id} className="bg-white rounded-xl border border-slate-200 p-4 opacity-70">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold text-slate-900 text-sm">{booking.businesses?.name}</p>
@@ -145,6 +165,20 @@ export default function CustomerPage() {
                       <p className="text-xs text-slate-500 mt-1">
                         {formatDate(booking.date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
                       </p>
+                      {canReview && (
+                        reviewed ? (
+                          <p className="text-xs text-yellow-500 mt-1.5">
+                            {'★'.repeat(reviewed.rating)} Reviewed
+                          </p>
+                        ) : (
+                          <Link
+                            to={`/review/${booking.id}`}
+                            className="inline-block text-xs text-yellow-600 hover:text-yellow-800 font-medium mt-1.5"
+                          >
+                            ★ Leave a review
+                          </Link>
+                        )
+                      )}
                     </div>
                     <div className="shrink-0 text-right">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -154,14 +188,10 @@ export default function CustomerPage() {
                       }`}>
                         {booking.status === 'cancelled' ? 'Cancelled' : 'Completed'}
                       </span>
-                      {booking.status === 'cancelled' && booking.cancellation_reason && (
-                        <p className="text-xs text-slate-400 mt-1 max-w-[140px]">
-                          "{booking.cancellation_reason}"
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
+                )})
               ))}
             </div>
           </section>

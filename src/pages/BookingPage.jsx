@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import BrandLink from '../components/BrandLink'
 
@@ -161,6 +161,7 @@ function Steps({ current }) {
 
 export default function BookingPage() {
   const { slug } = useParams()
+  const navigate = useNavigate()
   const [business, setBusiness] = useState(null)
   const [services, setServices] = useState([])
   const [availability, setAvailability] = useState([])
@@ -178,6 +179,8 @@ export default function BookingPage() {
   const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [booking, setBooking] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [avgRating, setAvgRating] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -191,13 +194,19 @@ export default function BookingPage() {
       if (!biz) { setNotFound(true); setLoading(false); return }
       setBusiness(biz)
 
-      const [{ data: svcs }, { data: avail }] = await Promise.all([
+      const [{ data: svcs }, { data: avail }, { data: revs }] = await Promise.all([
         supabase.from('services').select('*').eq('business_id', biz.id).order('name'),
         supabase.from('availability').select('*').eq('business_id', biz.id),
+        supabase.from('reviews').select('*').eq('business_id', biz.id).order('created_at', { ascending: false }),
       ])
 
       setServices(svcs || [])
       setAvailability(avail || [])
+      const revList = revs || []
+      setReviews(revList)
+      if (revList.length > 0) {
+        setAvgRating(revList.reduce((sum, r) => sum + r.rating, 0) / revList.length)
+      }
       setLoading(false)
     }
     load()
@@ -326,6 +335,12 @@ export default function BookingPage() {
             Done
           </a>
           <Link
+            to={`/review/${booking.id}`}
+            className="block w-full text-center text-sm text-yellow-600 hover:text-yellow-800 py-1 font-medium"
+          >
+            ★ Leave a review
+          </Link>
+          <Link
             to="/my-bookings"
             className="block w-full text-center text-sm text-indigo-600 hover:text-indigo-800 py-1"
           >
@@ -356,8 +371,8 @@ export default function BookingPage() {
         <div className="max-w-2xl mx-auto px-4 flex items-center justify-between h-12">
           <BrandLink className="font-bold text-slate-900 text-lg" />
           <div className="flex items-center gap-4">
-            <Link to="/search" className="text-sm text-slate-500 hover:text-slate-800">← Search</Link>
-            <Link to="/my-bookings" className="text-sm text-slate-500 hover:text-indigo-600 hidden sm:block">My bookings</Link>
+            <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-slate-800 transition-colors">← Back</button>
+            <Link to="/my-bookings" className="text-sm text-slate-500 hover:text-indigo-600">Home</Link>
           </div>
         </div>
       </header>
@@ -404,9 +419,46 @@ export default function BookingPage() {
             {business.phone && (
               <p className="text-sm text-slate-500 mt-1">📞 {business.phone}</p>
             )}
+            {avgRating !== null && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <span className="text-yellow-400 text-sm">{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+                <span className="text-sm font-semibold text-slate-700">{avgRating.toFixed(1)}</span>
+                <span className="text-xs text-slate-400">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Reviews */}
+      {reviews.length > 0 && (
+        <div className="border-t border-slate-100 bg-white">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+            <h2 className="text-base font-semibold text-slate-900 mb-4">
+              Reviews <span className="text-slate-400 font-normal text-sm">({reviews.length})</span>
+            </h2>
+            <div className="space-y-4">
+              {reviews.slice(0, 5).map(r => (
+                <div key={r.id} className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm shrink-0">
+                    {r.customer_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-slate-900">{r.customer_name}</p>
+                      <span className="text-yellow-400 text-xs">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                    </div>
+                    {r.comment && <p className="text-sm text-slate-600 mt-0.5">{r.comment}</p>}
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-lg mx-auto px-4 py-8">
         <Steps current={step} />
@@ -539,7 +591,6 @@ export default function BookingPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="e.g. John Smith"
                 />
               </div>
               <div>
@@ -550,19 +601,16 @@ export default function BookingPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="you@example.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Phone number <span className="text-slate-400 font-normal">(optional)</span>
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Phone number</label>
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="e.g. 07700 900123"
                 />
               </div>
 
